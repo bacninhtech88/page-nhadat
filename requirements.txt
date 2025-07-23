@@ -1,0 +1,24 @@
+fastapi==0.99.1
+pydantic==1.10.12
+starlette==0.27.0
+
+langchain
+langchain-community
+langchain-openai
+
+chromadb==0.4.24  # MỚI và ổn định hơn
+openai
+
+google-api-python-client
+google-auth
+google-auth-oauthlib
+
+python-dotenv
+uvicorn
+
+python-docx
+PyPDF2
+docx2txt
+pypdf
+resend
+requests
