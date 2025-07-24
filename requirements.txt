@@ -1,6 +1,6 @@
 fastapi==0.111.1
 pydantic==2.6.4
-starlette==0.27.0
+# starlette==0.27.0 nâng phiên bản uvicorn thì không càn nữa vì fastAPI sẽ tự động cài 
 uvicorn==0.30.0
 
 langchain
