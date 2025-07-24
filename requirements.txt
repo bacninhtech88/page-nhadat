@@ -1,6 +1,7 @@
-fastapi==0.99.1
+fastapi==0.111.1
 pydantic==2.6.4
 starlette==0.27.0
+uvicorn==0.30.0
 
 langchain
 langchain-community
@@ -14,7 +15,6 @@ google-auth
 google-auth-oauthlib
 
 python-dotenv
-uvicorn
 
 python-docx
 PyPDF2
