@@ -1,20 +1,23 @@
-# Base image dùng Python chính thức
-FROM python:3.11-slim
+FROM python:3.10-slim
 
-# Cài trình biên dịch Rust để hỗ trợ maturin nếu cần
-RUN apt-get update && apt-get install -y curl build-essential git libffi-dev \
-    && curl https://sh.rustup.rs -sSf | sh -s -- -y \
-    && . "$HOME/.cargo/env"
+# Cài Rust để tránh lỗi maturin
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libffi-dev \
+    build-essential \
+    curl \
+ && curl https://sh.rustup.rs -sSf | bash -s -- -y
+
+ENV PATH="/root/.cargo/bin:$PATH"
 
 # Tạo thư mục ứng dụng
 WORKDIR /app
 
-# Copy toàn bộ mã nguồn
-COPY . .
+COPY . /app
 
-# Cài thư viện Python
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+# Cài pip và requirements
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
-# Chạy app FastAPI
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Chạy ứng dụng FastAPI với uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
