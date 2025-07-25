@@ -4,6 +4,7 @@ uvicorn==0.30.0
 
 langchain
 langchain-openai
+langchain-community
 chromadb==0.4.22
 
 openai
