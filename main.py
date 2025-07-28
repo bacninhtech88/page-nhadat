@@ -26,6 +26,7 @@ import re
 
 # ==== FastAPI setup ====
 app = FastAPI()
+VERIFY_TOKEN = "bacninhtech_verify"
 
 app.add_middleware(
     CORSMiddleware,
@@ -158,6 +159,16 @@ async def chat_endpoint(req: ChatRequest):
         response_part = [qa_chain.run(req.message)]
         # result= qa_chain.invoke({"query":req.message})
         # response_part=[result.get("result","")]# phòng trường hợp không có "result"
+
+        async def verify(request: Request):
+            params = request.query_params
+            mode = params.get("hub.mode")
+            token = params.get("hub.verify_token")
+            challenge = params.get("hub.challenge")
+
+            if mode == "subscribe" and token == VERIFY_TOKEN:
+                return int(challenge)
+            return {"status": "unauthorized"}
 
         phone = extract_phone_number(req.message)
         gia= extract_keyword(req.message,"giá")
