@@ -23,7 +23,7 @@ from langchain.chains import RetrievalQA
 
 import smtplib
 from email.message import EmailMessage
-import re
+import re  #là công cụ của python, sử dụng tìm kiếm regular expressions (số điện thoại, chữ)
 
 # ==== FastAPI setup ====
 app = FastAPI()
@@ -155,22 +155,21 @@ def extract_keyword(text: str, keyword: str): #text: chuỗi vào, keyword: từ
 
 
 @app.get("/chat")
+async def verify(request: Request):
+    params = request.query_params
+    mode = params.get("hub.mode")
+    token = params.get("hub.verify_token")
+    challenge = params.get("hub.challenge")
+
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        return PlainTextResponse(content=challenge, status_code=200)
+    return {"status": "unauthorized"}
+
+@app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
     try:
         response_part = [qa_chain.run(req.message)]
-        # result= qa_chain.invoke({"query":req.message})
-        # response_part=[result.get("result","")]# phòng trường hợp không có "result"
-        #thêm vào facebook
-        async def verify(request: Request):
-            params = request.query_params
-            mode = params.get("hub.mode")
-            token = params.get("hub.verify_token")
-            challenge = params.get("hub.challenge")
 
-            if mode == "subscribe" and token == VERIFY_TOKEN:
-                return int(challenge)
-            return {"status": "unauthorized"}
-# kết thúc thêm facebook
         phone = extract_phone_number(req.message)
         gia= extract_keyword(req.message,"giá")
         chinhsach= extract_keyword(req.message,"chính sách")
