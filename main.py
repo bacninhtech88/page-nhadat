@@ -1,6 +1,7 @@
 import os
 import io
 import shutil
+import requests
 import resend
 from dotenv import load_dotenv
 from google.oauth2 import service_account
