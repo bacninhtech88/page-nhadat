@@ -1,7 +1,6 @@
 import os
 import io
 import shutil
-import requests
 import resend
 from dotenv import load_dotenv
 from google.oauth2 import service_account
@@ -14,7 +13,7 @@ from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from pydantic import BaseModel
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse  #them facebook page
 
@@ -154,7 +153,7 @@ def extract_keyword(text: str, keyword: str): #text: chuỗi vào, keyword: từ
     return None
 
 
-@app.get("/chat")
+@app.get("/chat")   #link get để xác minh facebook vì nó ko hỗ trợ post
 async def verify(request: Request):
     params = request.query_params
     mode = params.get("hub.mode")
