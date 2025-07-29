@@ -16,7 +16,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse  #them facebook page
 
 from langchain.chains import RetrievalQA
 # phần lấy số điện thoại
@@ -27,7 +27,7 @@ import re
 
 # ==== FastAPI setup ====
 app = FastAPI()
-VERIFY_TOKEN = "bacninhtech_verify"
+VERIFY_TOKEN = "bacninhtech_verify"  #xác minh facebook
 
 app.add_middleware(
     CORSMiddleware,
@@ -154,13 +154,13 @@ def extract_keyword(text: str, keyword: str): #text: chuỗi vào, keyword: từ
     return None
 
 
-@app.post("/chat")
+@app.get("/chat")
 async def chat_endpoint(req: ChatRequest):
     try:
         response_part = [qa_chain.run(req.message)]
         # result= qa_chain.invoke({"query":req.message})
         # response_part=[result.get("result","")]# phòng trường hợp không có "result"
-
+        #thêm vào facebook
         async def verify(request: Request):
             params = request.query_params
             mode = params.get("hub.mode")
@@ -170,7 +170,7 @@ async def chat_endpoint(req: ChatRequest):
             if mode == "subscribe" and token == VERIFY_TOKEN:
                 return int(challenge)
             return {"status": "unauthorized"}
-
+# kết thúc thêm facebook
         phone = extract_phone_number(req.message)
         gia= extract_keyword(req.message,"giá")
         chinhsach= extract_keyword(req.message,"chính sách")
