@@ -20,11 +20,11 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 load_dotenv()
 
 # ==== Cấu hình API ====
-CREDENTIALS_URL = "https://foreignervietnam.com/langchain/drive-folder.php"
+CREDENTIALS_URL = os.getenv("CREDENTIALS_URL")
 CREDENTIALS_TOKEN = os.getenv("CREDENTIALS_TOKEN")
-SERVICE_ACCOUNT_FILE = "/tmp/drive-folder.json"
+JSON_ACCOUNT_FILE = os.getenv("JSON_ACCOUNT_FILE")
 # Thay thế bằng ID thư mục Google Drive của bạn
-FOLDER_ID = "1rAUTvaAgyTNzrj7u15vw5s2zNtK1QsDm" 
+DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID")
 TEMP_DATA_DIR = "/tmp/data"
 CHROMA_DB_DIR = "/tmp/chroma_db"
 
@@ -39,7 +39,7 @@ def setup_vectorstore():
     try:
         response = requests.get(CREDENTIALS_URL, headers=headers)
         if response.status_code == 200:
-            with open(SERVICE_ACCOUNT_FILE, "wb") as f:
+            with open(JSON_ACCOUNT_FILE, "wb") as f:
                 f.write(response.content)
             print("Hoàn tất: Tải file xác thực thành công.")
         else:
@@ -51,16 +51,16 @@ def setup_vectorstore():
 
     # 2. Xác thực Google Drive
     print("Bắt đầu: Xác thực Google Drive...")
-    creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE)
+    creds = service_account.Credentials.from_service_account_file(JSON_ACCOUNT_FILE)
     drive_service = build("drive", "v3", credentials=creds)
     print("Hoàn tất: Xác thực Google Drive thành công.")
 
     # 3. Tải tài liệu từ Drive
     os.makedirs(TEMP_DATA_DIR, exist_ok=True)
-    print(f"Bắt đầu: Tải tài liệu từ Folder ID {FOLDER_ID}...")
+    print(f"Bắt đầu: Tải tài liệu từ Folder ID {DRIVE_FOLDER_ID}...")
     
     results = drive_service.files().list(
-        q=f"'{FOLDER_ID}' in parents and trashed=false",
+        q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false",
         fields="files(id, name)"
     ).execute()
     files = results.get("files", [])
