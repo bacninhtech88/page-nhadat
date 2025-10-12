@@ -1,12 +1,11 @@
 # ====================================================================
-# FILE: main.py - API Xử lý Webhook Facebook, AI và Kết nối DB
-# Cập nhật lần cuối: 30/09/2025 (Phiên bản hoàn chỉnh)
+
 # ====================================================================
 import uvicorn
 import logging
 import requests
 import os
-import resend
+import resend 
 
 from fastapi import FastAPI, Request, BackgroundTasks 
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,8 +19,8 @@ from agent import get_answer
 from dotenv import load_dotenv
 
 # URL của endpoint PHP để ghi dữ liệu
-PHP_CONNECT_URL = "https://foreignervietnam.com/langchain/connect.php" 
-VERIFY_TOKEN = "dong1411" # Mã xác minh Webhook của bạn
+PHP_CONNECT_URL = os.getenv("PHP_CONNECT_URL") 
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN") # Mã xác minh Webhook của bạn
 
 # Cấu hình logging
 logging.basicConfig(
@@ -62,7 +61,7 @@ except Exception as e:
 # ========== 1. Các Hàm Hỗ trợ và Kiểm tra Kết Nối ==========
 
 # ==== Gửi email (Giữ nguyên) ====
-resend.api_key = "re_DwokJ9W5_E7evBxTVZ2kVVGLPEd9puRuC"
+resend.api_key = os.getenv("MAIL_RESEND_API") 
 
 def send_email(subject: str, content: str):
     try:
