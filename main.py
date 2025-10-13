@@ -24,6 +24,7 @@ os.environ["CHROMA_TELEMETRY"] = "false"
 
 # ==== ĐỌC BIẾN MÔI TRƯỜNG CẦN THIẾT ====
 PHP_CONNECT_URL = os.getenv("PHP_CONNECT_URL") 
+logging.info(f"DEBUG: PHP_CONNECT_URL đã đọc được: {PHP_CONNECT_URL}")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN") 
 PAGE_ACCESS_TOKEN = os.getenv("FB_PAGE_ACCESS_TOKEN") # Token truy cập Page
 PAGE_ID = os.getenv("FB_PAGE_ID") # ID Page
