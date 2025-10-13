@@ -3,54 +3,75 @@
 # ====================================================================
 import requests
 import os
-import logging # Cần để ghi log lỗi khi xử lý webhook
+import logging 
 from dotenv import load_dotenv
 
-load_dotenv()
 
-# Cấu hình logging tạm thời (nên sử dụng logging từ main)
-# logging.basicConfig(level=logging.INFO) 
+# Thiết lập logging
+logger = logging.getLogger(__name__)
 
-ACCESS_TOKEN = os.getenv("FB_PAGE_ACCESS_TOKEN")
+# ====================================================================
+# 1. GRAPH API TOOLS (Các hàm gọi API Facebook)
+# ====================================================================
 
-def get_page_info(page_id="106758620808465"):
-    # ... (Giữ nguyên) ...
+# Cần truyền access_token và page_id vào hàm
+def get_page_info(page_id: str, access_token: str) -> dict:
+    """Lấy thông tin Page cụ thể bằng ID và Access Token (Cần truyền từ main.py)."""
     url = f"https://graph.facebook.com/v19.0/{page_id}"
     params = {
-        "access_token": ACCESS_TOKEN,
+        "access_token": access_token, # SỬ DỤNG tham số access_token
         "fields": "name,fan_count,about"
     }
-    res = requests.get(url, params=params)
-    data = res.json()
-    if "error" in data:
-        print("Lỗi:", data["error"]["message"])
-    return data
+    try:
+        res = requests.get(url, params=params, timeout=5)
+        res.raise_for_status() # Báo lỗi nếu status code không phải 2xx
+        data = res.json()
+        if "error" in data:
+            logger.error(f"Lỗi lấy thông tin Page {page_id}: {data['error']['message']}")
+        return data
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Lỗi mạng khi lấy thông tin Page {page_id}: {e}")
+        return {"error": str(e)}
 
-def get_latest_posts(page_id="106758620808465", limit=3):
-    # ... (Giữ nguyên) ...
+# Cần truyền access_token và page_id vào hàm
+def get_latest_posts(page_id: str, access_token: str, limit=3) -> dict:
+    """Lấy các bài đăng mới nhất (Cần truyền từ main.py)."""
     url = f"https://graph.facebook.com/v19.0/{page_id}/posts"
     params = {
-        "access_token": ACCESS_TOKEN,
+        "access_token": access_token, # SỬ DỤNG tham số access_token
         "limit": limit,
         "fields": "message,created_time"
     }
-    res = requests.get(url, params=params)
-    data = res.json()
-    if "error" in data:
-        print("Lỗi:", data["error"]["message"])
-    return data
+    try:
+        res = requests.get(url, params=params, timeout=5)
+        res.raise_for_status()
+        data = res.json()
+        if "error" in data:
+            logger.error(f"Lỗi lấy bài đăng Page {page_id}: {data['error']['message']}")
+        return data
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Lỗi mạng khi lấy bài đăng Page {page_id}: {e}")
+        return {"error": str(e)}
 
-def reply_comment(comment_id: str, message: str):
-    # ... (Giữ nguyên) ...
+# Cần truyền access_token vào hàm
+def reply_comment(comment_id: str, message: str, access_token: str) -> dict:
+    """Phản hồi một bình luận (Cần truyền từ main.py)."""
     url = f"https://graph.facebook.com/v19.0/{comment_id}/comments"
-    params = {"access_token": ACCESS_TOKEN}
+    params = {"access_token": access_token} # SỬ DỤNG tham số access_token
     data = {"message": message}
-    response = requests.post(url, params=params, data=data)
-    return response.json()
+    try:
+        response = requests.post(url, params=params, data=data, timeout=5)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Lỗi phản hồi bình luận {comment_id}: {e}")
+        return {"error": str(e)}
 
 # ====================================================================
-# HÀM MỚI: Xử lý Webhook Facebook và Ghi DB qua PHP (ĐÃ SỬA LỖI VÒNG LẶP)
+# 2. XỬ LÝ PAYLOAD WEBHOOK VÀ GHI DB
+# (Hàm này giữ nguyên cấu trúc cũ, chỉ dùng logging thay vì print)
 # ====================================================================
+
 def handle_webhook_data(data: dict, php_connect_url: str):
     """
     Trích xuất dữ liệu từ payload webhook và gửi tới connect.php.
@@ -82,7 +103,7 @@ def handle_webhook_data(data: dict, php_connect_url: str):
                 
                 # >>>>>> KIỂM TRA MỚI: BỎ QUA BÌNH LUẬN TỪ CHÍNH PAGE <<<<<<
                 if idpersion == idpage:
-                    logging.info(f"⏭️ Bỏ qua bình luận tự động của Page ID {idpage} để tránh vòng lặp.")
+                    logger.info(f"⏭️ Bỏ qua bình luận tự động của Page ID {idpage} để tránh vòng lặp.")
                     continue
                 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                 
@@ -98,8 +119,8 @@ def handle_webhook_data(data: dict, php_connect_url: str):
                     "idcomment": idcomment,
                     "message": message,
                     "creatime": creatime,
-                    "status": "PENDING",    
-                    "is_replied": 0,    
+                    "status": "PENDING",     
+                    "is_replied": 0,     
                     "ai_response": None,
                     "processed_at": None
                 }
@@ -109,8 +130,10 @@ def handle_webhook_data(data: dict, php_connect_url: str):
                     response = requests.post(php_connect_url, json=db_payload, timeout=5)
                     
                     if response.status_code == 200 and response.json().get('status') == 'success':
-                        logging.info(f"✅ Bình luận ID {idcomment} đã được ghi thành công qua PHP.")
+                        logger.info(f"✅ Bình luận ID {idcomment} đã được ghi thành công qua PHP.")
                     else:
-                        logging.error(f"❌ Lỗi ghi DB qua PHP. Code: {response.status_code}, Res: {response.text}")
+                        logger.error(f"❌ Lỗi ghi DB qua PHP. Code: {response.status_code}, Res: {response.text}")
                 except requests.exceptions.RequestException as e:
-                    logging.error(f"❌ Lỗi mạng khi gửi tới PHP: {e}")
+                    logger.error(f"❌ Lỗi mạng khi gửi tới PHP: {e}")
+
+# ====================================================================
