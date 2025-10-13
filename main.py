@@ -1,5 +1,6 @@
 # ====================================================================
-
+# FILE: main.py - API Xử lý Webhook Facebook, AI và Kết nối DB
+# Cập nhật lần cuối: 13/10/2025 (Đã sửa lỗi thụt dòng và truyền biến môi trường)
 # ====================================================================
 import uvicorn
 import logging
@@ -18,9 +19,15 @@ from agent import get_answer
 
 from dotenv import load_dotenv
 
-# URL của endpoint PHP để ghi dữ liệu
+load_dotenv()
+os.environ["CHROMA_TELEMETRY"] = "false"
+
+# ==== ĐỌC BIẾN MÔI TRƯỜNG CẦN THIẾT ====
 PHP_CONNECT_URL = os.getenv("PHP_CONNECT_URL") 
-VERIFY_TOKEN = os.getenv("VERIFY_TOKEN") # Mã xác minh Webhook của bạn
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN") 
+PAGE_ACCESS_TOKEN = os.getenv("FB_PAGE_ACCESS_TOKEN") # Token truy cập Page
+PAGE_ID = os.getenv("FB_PAGE_ID") # ID Page
+# ========================================
 
 # Cấu hình logging
 logging.basicConfig(
@@ -31,9 +38,6 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-
-load_dotenv()
-os.environ["CHROMA_TELEMETRY"] = "false"
 
 # ==== KHAI BÁO FASTAPI APP VÀ MIDDLEWARE ====
 app = FastAPI() 
@@ -47,13 +51,11 @@ app.add_middleware(
 )
 
 # ==== TẢI VECTORSTORE (CHẠY ĐỒNG BỘ KHI KHỞI ĐỘNG) ====
-# Đảm bảo quá trình này không bị Timeout (Kiểm tra drive.py)
 try:
     VECTORSTORE = get_vectorstore()
     logging.info("✅ VECTORSTORE đã được tải/khởi tạo thành công.")
 except Exception as e:
     logging.error(f"❌ LỖI KHỞI TẠO RAG: Không thể tải VECTORSTORE: {e}")
-    # Đặt VECTORSTORE là None để xử lý lỗi sau này nếu cần
     VECTORSTORE = None
 # =====================================================
 
@@ -76,8 +78,9 @@ def send_email(subject: str, content: str):
 
 def test_facebook_connection():
     """Kiểm tra kết nối tới Facebook Page bằng cách gọi hàm get_page_info."""
+    # Truyền PAGE_ID và PAGE_ACCESS_TOKEN
     try:
-        page_info = get_page_info()
+        page_info = get_page_info(PAGE_ID, PAGE_ACCESS_TOKEN) 
         if "id" in page_info and "name" in page_info:
             return {
                 "facebook_connection": "success",
@@ -100,11 +103,13 @@ def test_facebook_connection():
 
 @app.get("/api/page_info")
 def page_info_endpoint():
-    return get_page_info()
+    # Truyền PAGE_ID và PAGE_ACCESS_TOKEN
+    return get_page_info(PAGE_ID, PAGE_ACCESS_TOKEN)
 
 @app.get("/api/page_posts")
 def page_posts_endpoint():
-    return get_latest_posts()
+    # Truyền PAGE_ID và PAGE_ACCESS_TOKEN
+    return get_latest_posts(PAGE_ID, PAGE_ACCESS_TOKEN)
 
 @app.get("/")
 async def root():
@@ -120,7 +125,8 @@ async def root():
 # ====================================================================
 # HÀM XỬ LÝ NỀN (BACKGROUND TASK) CHO AI VÀ PHẢN HỒI
 # ====================================================================
-def process_ai_reply(idcomment: str, message: str, idpage: str):
+# Nhận access_token từ background_tasks
+def process_ai_reply(idcomment: str, message: str, idpage: str, access_token: str):
     """
     Hàm này chạy trong nền để tạo câu trả lời AI và đăng lên Facebook.
     """
@@ -135,7 +141,8 @@ def process_ai_reply(idcomment: str, message: str, idpage: str):
         logging.info(f"✅ AI đã trả lời cho {idcomment}: {ai_response[:50]}...")
 
         # 2. PHẢN HỒI BÌNH LUẬN TRÊN FACEBOOK
-        fb_response = reply_comment(idcomment, ai_response) 
+        # Truyền access_token vào hàm reply_comment
+        fb_response = reply_comment(idcomment, ai_response, access_token) 
         
         if 'id' in fb_response:
             logging.info(f"✅ Đã phản hồi thành công trên Facebook. ID phản hồi: {fb_response['id']}")
@@ -169,10 +176,8 @@ async def verify_webhook(request: Request):
     return PlainTextResponse("Invalid token", status_code=403)
 
 
-
 @app.post("/webhook")
 async def webhook(request: Request, background_tasks: BackgroundTasks):
-    # ... (các đoạn code đầu)
     try:
         data = await request.json()
         
@@ -182,7 +187,14 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
         # 2. KÍCH HOẠT XỬ LÝ AI BẤT ĐỒNG BỘ
         if data.get('object') == 'page' and data.get('entry'):
             for entry in data['entry']:
-                idpage = entry.get('id')
+                # Lấy ID Page từ payload
+                idpage_payload = entry.get('id') 
+                
+                # Kiểm tra ID Page từ payload có khớp với ID Page trong biến môi trường không
+                if idpage_payload != PAGE_ID:
+                    logging.warning(f"⚠️ Webhook nhận từ ID Page không khớp: {idpage_payload}. Bỏ qua.")
+                    continue
+                
                 for change in entry.get('changes', []):
                     # Lọc sự kiện bình luận (comment)
                     if change.get('field') == 'feed' and change.get('value', {}).get('item') == 'comment':
@@ -190,20 +202,23 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
                         idcomment = value.get('comment_id')
                         message = value.get('message', '').strip()
                         idpost = value.get('post_id')
-                        # >>> ID NGƯỜI GỬI BÌNH LUẬN CẦN LẤY Ở ĐÂY <<<
+                        
                         idpersion = value.get('from', {}).get('id') 
 
                         # >>>>>>>>>> ĐIỂM SỬA LỖI VÒNG LẶP CỐT LÕI <<<<<<<<<<
-                        if idpersion == idpage:
-                            logging.info(f"⏭️ Bỏ qua bình luận tự động của Page ID {idpage} (Fix tại main.py).")
+                        if idpersion == idpage_payload: # Sử dụng idpage_payload
+                            logging.info(f"⏭️ Bỏ qua bình luận tự động của Page ID {idpage_payload}.")
                             continue
                         # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                         
                         # Chỉ xử lý comment mới, không phải reply
                         if message and idcomment and idcomment != idpost: 
-                             # Thêm tác vụ AI vào hàng đợi nền
-                             background_tasks.add_task(process_ai_reply, idcomment, message, idpage)
-                             logging.info(f"➡️ Đã thêm tác vụ AI cho comment ID: {idcomment}")
+                            # Thêm tác vụ AI vào hàng đợi nền
+                            # Truyền PAGE_ACCESS_TOKEN và ID Page vào Background Task
+                            background_tasks.add_task(
+                                process_ai_reply, idcomment, message, idpage_payload, PAGE_ACCESS_TOKEN
+                            )
+                            logging.info(f"➡️ Đã thêm tác vụ AI cho comment ID: {idcomment}")
 
     except Exception as e:
         logging.error(f"❌ Lỗi xử lý Webhook: {e}")
