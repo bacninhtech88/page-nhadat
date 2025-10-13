@@ -23,6 +23,8 @@ load_dotenv()
 os.environ["CHROMA_TELEMETRY"] = "false"
 
 # ==== ĐỌC BIẾN MÔI TRƯỜNG CẦN THIẾT ====
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") 
+logging.info(f"DEBUG: OPENAI_KEY LENGTH: {len(OPENAI_API_KEY) if OPENAI_API_KEY else 'NONE'}")
 PHP_CONNECT_URL = os.getenv("PHP_CONNECT_URL") 
 logging.info(f"DEBUG: PHP_CONNECT_URL đã đọc được: {PHP_CONNECT_URL}")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN") 
