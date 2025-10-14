@@ -20,7 +20,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 load_dotenv()
 
 # ==== Cấu hình API ====
-CREDENTIALS_URL = os.getenv("CREDENTIALS_URL")
+CREDENTIALS_URL = os.getenv("CREDENTIALS_URL_PHP")
 CREDENTIALS_TOKEN = os.getenv("CREDENTIALS_TOKEN")
 JSON_ACCOUNT_FILE = os.getenv("JSON_ACCOUNT_FILE")
 # Thay thế bằng ID thư mục Google Drive của bạn
@@ -117,3 +117,4 @@ VECTORSTORE = setup_vectorstore()
 # Hàm getter để main.py có thể truy cập vectorstore
 def get_vectorstore():
     return VECTORSTORE
+
